@@ -6,14 +6,11 @@
     <title>Stopwatch & Timer</title>
     <style>
       :root {
-        --bg: #0f1115;
         --card: #141821;
         --ink: #e9eef7;
         --ink-dim: #b6c0d4;
         --accent: #ffffff;
-        --accent-2: #1f6feb;
         --ok: #1db954;
-        --warn: #f59e0b;
         --danger: #ef4444;
         --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
         --radius: 22px;
@@ -39,7 +36,7 @@
         padding: 32px clamp(16px, 4vw, 40px);
       }
 
-      /* Pills bar */
+      /* Pills */
       .pills {
         display: flex;
         gap: 14px;
@@ -77,7 +74,7 @@
         box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
       }
 
-      /* Panel cards (hidden by default) */
+      /* Panels */
       .panel {
         display: none;
         background: var(--card);
@@ -91,7 +88,7 @@
         display: block;
       }
 
-      /* Big number display */
+      /* Readout */
       .readout {
         font-weight: 900;
         line-height: 1;
@@ -101,7 +98,7 @@
         margin: 10px 0 16px;
       }
 
-      /* Control row */
+      /* Controls */
       .controls {
         display: flex;
         gap: 14px;
@@ -121,9 +118,6 @@
       }
       .btn.ok {
         background: var(--ok);
-      }
-      .btn.warn {
-        background: var(--warn);
       }
       .btn.danger {
         background: var(--danger);
@@ -150,7 +144,7 @@
         font-weight: 700;
       }
       input[type="number"] {
-        width: 88px;
+        width: 92px;
         padding: 10px 12px;
         background: #0d1117;
         color: var(--ink);
@@ -166,20 +160,18 @@
         -webkit-appearance: none;
         margin: 0;
       }
+
       .muted {
         color: var(--ink-dim);
         font-weight: 700;
         letter-spacing: 0.3px;
       }
-
-      /* subtle divider */
       .hr {
         height: 1px;
         background: rgba(255, 255, 255, 0.06);
         margin: 18px 0;
       }
 
-      /* Finish flash */
       .flash {
         animation: flash 0.8s ease 3;
       }
@@ -221,7 +213,7 @@
         </button>
       </div>
 
-      <!-- Stopwatch panel -->
+      <!-- Stopwatch -->
       <section
         class="panel"
         id="panelStop"
@@ -233,13 +225,9 @@
           <button class="btn ok" id="swStart">Start</button>
           <button class="btn danger" id="swReset" disabled>Reset</button>
         </div>
-        <div class="hr"></div>
-        <div class="muted">
-          A simple stopwatch. Start toggles to Pause while running.
-        </div>
       </section>
 
-      <!-- Timer panel -->
+      <!-- Timer (HH:MM:SS, minutes/seconds clamped 0–59) -->
       <section
         class="panel"
         id="panelTimer"
@@ -248,44 +236,42 @@
       >
         <div class="inputs">
           <div class="field">
+            <span>Hours</span>
+            <input id="tHour" type="number" min="0" max="999" value="0" />
+          </div>
+          <div class="field">
             <span>Min</span>
-            <input id="tMin" type="number" min="0" max="999" value="25" />
+            <input id="tMin" type="number" min="0" max="59" value="25" />
           </div>
           <div class="field">
             <span>Sec</span>
             <input id="tSec" type="number" min="0" max="59" value="0" />
           </div>
         </div>
-        <div class="readout" id="tmOut">25:00</div>
+
+        <div class="readout" id="tmOut">00:25:00</div>
         <div class="controls">
           <button class="btn ok" id="tmStart">Start</button>
-          <button class="btn warn" id="tmPause" disabled>Pause</button>
           <button class="btn danger" id="tmReset" disabled>Reset</button>
-        </div>
-        <div class="hr"></div>
-        <div class="muted">
-          No sound. When it reaches 0:00 the panel flashes briefly.
         </div>
       </section>
     </main>
 
     <script>
-      /* ---------- pill behaviour (show/hide panels, toggle off when re-clicked) ---------- */
+      /* ---------- Pills (toggle show/hide; click active pill to hide) ---------- */
       const pillStop = document.getElementById("pillStop");
       const pillTimer = document.getElementById("pillTimer");
       const panelStop = document.getElementById("panelStop");
       const panelTimer = document.getElementById("panelTimer");
 
       function setActive(pill, panel) {
-        const sameActive = pill.classList.contains("active");
-        // clear all
+        const same = pill.classList.contains("active");
         [pillStop, pillTimer].forEach((p) => {
           p.classList.remove("active");
           p.setAttribute("aria-selected", "false");
         });
         [panelStop, panelTimer].forEach((p) => p.classList.remove("show"));
-
-        if (!sameActive) {
+        if (!same) {
           pill.classList.add("active");
           pill.setAttribute("aria-selected", "true");
           panel.classList.add("show");
@@ -303,13 +289,12 @@
 
       let swRunning = false;
       let swStartStamp = 0;
-      let swElapsed = 0; // total elapsed ms (accumulated when paused)
+      let swElapsed = 0;
       let swRaf = null;
 
       function swFormat(ms) {
         const total = Math.floor(ms / 10); // hundredths
-        const h = Math.floor(total / 360000); // not shown, but future proof
-        const m = Math.floor((total % 360000) / 6000);
+        const m = Math.floor(total / 6000);
         const s = Math.floor((total % 6000) / 100);
         const hs = total % 100;
         return `${String(m).padStart(2, "0")}:${String(s).padStart(
@@ -344,38 +329,53 @@
         swStart.textContent = "Start";
         swReset.disabled = true;
       }
-
       swStart.addEventListener("click", swStartPause);
       swReset.addEventListener("click", swResetAll);
-
-      /* Pause stopwatch automatically if the panel gets hidden */
-      const obs = new MutationObserver(() => {
+      /* Auto-pause if stopwatch panel hides */
+      new MutationObserver(() => {
         if (!panelStop.classList.contains("show") && swRunning) swStartPause();
-      });
-      obs.observe(panelStop, { attributes: true, attributeFilter: ["class"] });
+      }).observe(panelStop, { attributes: true, attributeFilter: ["class"] });
 
-      /* ------------------------------- TIMER ------------------------------- */
+      /* -------------------------------- TIMER -------------------------------- */
+      const tHour = document.getElementById("tHour");
       const tMin = document.getElementById("tMin");
       const tSec = document.getElementById("tSec");
+
       const tmOut = document.getElementById("tmOut");
-      const tmStart = document.getElementById("tmStart");
-      const tmPause = document.getElementById("tmPause");
+      const tmStart = document.getElementById("tmStart"); // Start/Pause toggle
       const tmReset = document.getElementById("tmReset");
 
-      let tmRemaining = 25 * 60 * 1000;
+      let tmRemaining = (0 * 3600 + 25 * 60 + 0) * 1000;
       let tmEndAt = 0;
       let tmTimerId = null;
       let tmRunning = false;
 
+      function clamp(val, lo, hi) {
+        if (isNaN(val)) return lo;
+        return Math.max(lo, Math.min(hi, val));
+      }
+      function sanitizeInputs() {
+        tHour.value = clamp(parseInt(tHour.value || "0", 10), 0, 999);
+        tMin.value = clamp(parseInt(tMin.value || "0", 10), 0, 59);
+        tSec.value = clamp(parseInt(tSec.value || "0", 10), 0, 59);
+      }
+      function inputsToMs() {
+        sanitizeInputs();
+        const h = parseInt(tHour.value, 10);
+        const m = parseInt(tMin.value, 10);
+        const s = parseInt(tSec.value, 10);
+        return (h * 3600 + m * 60 + s) * 1000;
+      }
       function tmFmt(ms) {
         ms = Math.max(0, ms);
-        const s = Math.ceil(ms / 1000); // show next second while counting down
-        const mPart = Math.floor(s / 60);
-        const sPart = s % 60;
-        return `${String(mPart).padStart(2, "0")}:${String(sPart).padStart(
+        const total = Math.ceil(ms / 1000);
+        const h = Math.floor(total / 3600);
+        const m = Math.floor((total % 3600) / 60);
+        const s = total % 60;
+        return `${String(h).padStart(2, "0")}:${String(m).padStart(
           2,
           "0"
-        )}`;
+        )}:${String(s).padStart(2, "0")}`;
       }
       function tmRender() {
         const left = tmRunning ? tmEndAt - Date.now() : tmRemaining;
@@ -388,71 +388,52 @@
           clearInterval(tmTimerId);
           tmRemaining = 0;
           tmRender();
-          // small visual finish cue
           panelTimer.classList.remove("flash");
           void panelTimer.offsetWidth;
           panelTimer.classList.add("flash");
-          tmStart.disabled = false;
-          tmPause.disabled = true;
+          tmStart.textContent = "Start";
           tmReset.disabled = false;
           return;
         }
         tmRender();
       }
-      function tmStartRun() {
-        // if not running, (re)build from inputs when tmRemaining is 0 or from stored remainder
+      function tmStartPause() {
         if (!tmRunning) {
+          // starting (or resuming)
           if (tmRemaining === 0) {
-            const mins = Math.max(
-              0,
-              Math.min(999, parseInt(tMin.value || "0", 10))
-            );
-            const secs = Math.max(
-              0,
-              Math.min(59, parseInt(tSec.value || "0", 10))
-            );
-            tmRemaining = (mins * 60 + secs) * 1000;
+            tmRemaining = inputsToMs();
           }
           if (tmRemaining <= 0) return;
           tmRunning = true;
           tmEndAt = Date.now() + tmRemaining;
-          tmTimerId = setInterval(tmTick, 100); // 10Hz feels smooth and cheap
-          tmStart.disabled = true;
-          tmPause.disabled = false;
+          tmTimerId = setInterval(tmTick, 100);
+          tmStart.textContent = "Pause";
           tmReset.disabled = false;
           tmTick();
+        } else {
+          // pausing
+          tmRunning = false;
+          clearInterval(tmTimerId);
+          tmRemaining = Math.max(0, tmEndAt - Date.now());
+          tmStart.textContent = "Start";
+          tmRender();
         }
-      }
-      function tmPauseRun() {
-        if (!tmRunning) return;
-        tmRunning = false;
-        clearInterval(tmTimerId);
-        tmRemaining = Math.max(0, tmEndAt - Date.now());
-        tmStart.disabled = false;
-        tmPause.disabled = true;
-        tmRender();
       }
       function tmResetAll() {
         tmRunning = false;
         clearInterval(tmTimerId);
-        const mins = Math.max(
-          0,
-          Math.min(999, parseInt(tMin.value || "0", 10))
-        );
-        const secs = Math.max(0, Math.min(59, parseInt(tSec.value || "0", 10)));
-        tmRemaining = (mins * 60 + secs) * 1000;
-        tmStart.disabled = false;
-        tmPause.disabled = true;
-        tmReset.disabled = true;
+        tmRemaining = inputsToMs();
+        tmStart.textContent = "Start";
+        tmReset.disabled = tmRemaining === 0;
         tmRender();
       }
-
-      tmStart.addEventListener("click", tmStartRun);
-      tmPause.addEventListener("click", tmPauseRun);
+      tmStart.addEventListener("click", tmStartPause);
       tmReset.addEventListener("click", tmResetAll);
-      [tMin, tSec].forEach((inp) => inp.addEventListener("change", tmResetAll));
+      [tHour, tMin, tSec].forEach((inp) =>
+        inp.addEventListener("change", tmResetAll)
+      );
 
-      // On first load, ensure the display matches inputs
+      // Initialize timer display
       tmResetAll();
     </script>
   </body>
