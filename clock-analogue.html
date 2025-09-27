@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Clock</title>
+    <style>
+      body {
+        margin: 0;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        background: #0f1115;
+        color: #e8eaed;
+        font-family: system-ui, sans-serif;
+      }
+
+      .date {
+        font-size: 2rem; /* BIG date */
+        font-weight: 700;
+        margin-bottom: 16px;
+      }
+
+      .analog {
+        width: min(260px, 80vw);
+        height: min(260px, 80vw);
+        border-radius: 50%;
+        background: #171a21;
+        position: relative;
+        box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.05),
+          0 8px 20px rgba(0, 0, 0, 0.4);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .time {
+        position: absolute;
+        top: 70%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 1rem; /* smaller time inside clock */
+        font-weight: 500;
+        color: #9aa0a6;
+      }
+
+      .hand {
+        width: 50%;
+        height: 2px;
+        background: #66d9ef;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform-origin: 0% 50%;
+        transform: rotate(90deg);
+        transition: transform 0.05s linear;
+      }
+
+      .hand.hour {
+        width: 30%;
+        height: 4px;
+        background: #a2b3ff;
+      }
+      .hand.min {
+        width: 40%;
+        height: 3px;
+        background: #e8eaed;
+      }
+      .hand.sec {
+        width: 45%;
+        height: 2px;
+        background: #66d9ef;
+      }
+
+      .center {
+        width: 8px;
+        height: 8px;
+        background: #e8eaed;
+        border-radius: 50%;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="date" id="date"></div>
+    <div class="analog">
+      <div class="hand hour" id="hour"></div>
+      <div class="hand min" id="minute"></div>
+      <div class="hand sec" id="second"></div>
+      <div class="center"></div>
+      <div class="time" id="time"></div>
+    </div>
+
+    <script>
+      function pad(n) {
+        return n.toString().padStart(2, "0");
+      }
+
+      function updateClock() {
+        const now = new Date();
+        const sec = now.getSeconds();
+        const min = now.getMinutes();
+        const hr = now.getHours();
+
+        // date big
+        document.getElementById("date").textContent = now.toLocaleDateString(
+          undefined,
+          { weekday: "short", day: "numeric", month: "short" }
+        );
+
+        // time small inside clock
+        document.getElementById("time").textContent = `${pad(hr)}:${pad(
+          min
+        )}:${pad(sec)}`;
+
+        // analog hands
+        const secDeg = sec * 6;
+        const minDeg = min * 6 + sec * 0.1;
+        const hrDeg = (hr % 12) * 30 + min * 0.5;
+
+        document.getElementById("second").style.transform = `rotate(${
+          secDeg - 90
+        }deg)`;
+        document.getElementById("minute").style.transform = `rotate(${
+          minDeg - 90
+        }deg)`;
+        document.getElementById("hour").style.transform = `rotate(${
+          hrDeg - 90
+        }deg)`;
+      }
+
+      setInterval(updateClock, 1000);
+      updateClock();
+    </script>
+  </body>
+</html>
